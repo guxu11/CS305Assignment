@@ -1,21 +1,23 @@
 
+import jdk.nashorn.internal.scripts.JO;
+
 import java.util.*;
 
-public class VirtualOperatingSystem {
+public class EmulateMemoryManagement {
     public final int TOTAL_MEMORY = 20 * 1024;
     public final int PAGE_SIZE = 1024;
     private int[] frames;
     private Job[] jobs;
     private int steps;
 
-    public VirtualOperatingSystem (Job[] jobs) {
+    public EmulateMemoryManagement(Job[] jobs) {
         this.jobs = jobs;
         this.frames = new int[TOTAL_MEMORY / PAGE_SIZE];
     }
 
     public boolean execute() {
-        System.out.println("```");
-        System.out.println("TimeStamp " + ++steps);
+        System.out.println("----------------------------------");
+        System.out.println("Time " + ++steps);
         printFrameSnapshot();
 
         Map<Job, Integer> jobs = new LinkedHashMap<>();
@@ -87,8 +89,8 @@ public class VirtualOperatingSystem {
             System.out.println("\t" + job + " - sleeping");
         }
         printFrameSnapshot();
-        System.out.println("Timestep " + steps + " finished");
-        System.out.println("```");
+        System.out.println("Time " + steps + " finished");
+        System.out.println("----------------------------------");
         System.out.println();
         System.out.println();
 
@@ -150,12 +152,11 @@ public class VirtualOperatingSystem {
 
 
     public void printFrameSnapshot() {
-        System.out.print("Frame Snapshot: ");
-        System.out.print("[");
+        System.out.print("Frame Occupied: ");
         for (int i = 0; i < frames.length; i++) {
-            System.out.print(frames[i] > 0 ? "X" : "_");
+            System.out.print(frames[i] > 0 ? "#" : "~");
         }
-        System.out.println("]");
+        System.out.println();
     }
 
     public static void main(String[] args) throws InterruptedException {
@@ -167,16 +168,33 @@ public class VirtualOperatingSystem {
                 new Job(5, 5, 2, 9, JobFinishState.Sleep),
                 new Job(6, 6, 3, 6, JobFinishState.Sleep),
                 new Job(7, 7, 2, 6, JobFinishState.Sleep),
-//                new Job(8,1,2,7,JobFinishState.End),
-//                new Job(9,1,2,7,JobFinishState.End),
-//                new Job(10,1,2,7,JobFinishState.End),
+                new Job(8,8,3,4,JobFinishState.Sleep),
+                new Job(9,9,5,5,JobFinishState.Sleep),
+                new Job(10,10,2,8,JobFinishState.Sleep),
+                new Job(11, 11, 4, 6, JobFinishState.End),
+                new Job(12, 12, 6, 5, JobFinishState.Sleep),
+                new Job(2, 13, 3, 6, JobFinishState.End ),
+                new Job(4, 13, 3, 4, JobFinishState.Sleep),
+                new Job(13, 13, 5, 3, JobFinishState.End),
+                new Job(7, 13, 2, 3, JobFinishState.End),
+                new Job(9, 17, 4, 4, JobFinishState.Sleep),
+                new Job(10, 19, 2, 11, JobFinishState.End),
+                new Job(6, 19, 3, 6, JobFinishState.End),
+                new Job(5, 20, 2, 10, JobFinishState.Sleep),
+                new Job(4, 21, 3, 12, JobFinishState.Sleep),
+                new Job(12, 22, 6, 13, JobFinishState.End),
+                new Job(8, 22, 3, 9, JobFinishState.End),
+                new Job(9, 28, 5, 11, JobFinishState.End),
+                new Job(5, 33, 2, 3, JobFinishState.Sleep),
+                new Job(4, 34, 3, 10, JobFinishState.End),
+                new Job(5, 38, 2, 10, JobFinishState.End)
         };
-        VirtualOperatingSystem virtualOperatingSystem = new VirtualOperatingSystem(jobs);
+        EmulateMemoryManagement virtualOperatingSystem = new EmulateMemoryManagement(jobs);
         System.out.println("Jobs Loaded: ");
         while (!virtualOperatingSystem.execute()) {
             Thread.sleep(100);
         }
-        System.out.println("Every job is sleeping and there are no more scheduled");
+        System.out.println("Every job is sleeping or ending!");
 
 //        virtualOperatingSystem.frames[1] = 1;
 //        virtualOperatingSystem.frames[14] = 1;
