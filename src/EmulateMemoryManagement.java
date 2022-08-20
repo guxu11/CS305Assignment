@@ -1,6 +1,7 @@
 
 import jdk.nashorn.internal.scripts.JO;
 
+import java.beans.beancontext.BeanContext;
 import java.util.*;
 
 public class EmulateMemoryManagement {
@@ -38,7 +39,8 @@ public class EmulateMemoryManagement {
             if (!Arrays.equals(firstFit, bestFit)) {
                 System.out.println("FirstFit and BestFit select different pages");
             }
-            int[] fit = bestFit;
+//            int[] fit = bestFit;
+            int[] fit = firstFit;
             if (fit == null) {
                 System.out.println("\t" + job + " - skipped: could not find " + job.requiredPages + " empty pages");
             } else {
@@ -53,7 +55,7 @@ public class EmulateMemoryManagement {
         }
         Map<Job, Integer> jobsRunning = new LinkedHashMap<>();
         for (Job job: jobs.keySet()) {
-            if (job.startTime <= steps && job.executionInterval > 0) {
+            if (job.startTime <= steps && job.executionInterval > 0 && job.heldPages != null) {
                 jobsRunning.put(job, jobs.get(job));
             }
         }
@@ -66,17 +68,17 @@ public class EmulateMemoryManagement {
             }
             if (job.executionInterval == 0) {
                 System.out.println("\t" + job + " - finishing: transitioned to " + job.finishState);
-                switch (job.finishState) {
-                    case End:
+//                switch (job.finishState) {
+//                    case End:
                         for (int i = job.heldPages[0]; i < job.heldPages[1]; i++) {
                             frames[i] = 0;
                         }
                         System.out.println("\t" + job + " - released: " + job.heldPages[0] + "-" + job.heldPages[1] + " pages");
                         this.jobs[jobs.get(job)] = null;
-                        break;
-                    case Sleep:
-                        break;
-                }
+//                        break;
+//                    case Sleep:
+//                        break;
+//                }
             }
         }
         Map<Job, Integer> jobsSleeping = new LinkedHashMap<>();
