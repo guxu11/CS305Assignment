@@ -45,6 +45,7 @@ java EmulateMemoryManagement
 
 ## 2.  Implementation
 
+<<<<<<< Updated upstream
 **1. Memory Page Allocation:**
 
 Assuming it's a contiguous memory, jobs can only allocated with contiguous space. If there remains pages that can contains the job, the OS will allocate the space for it. If not, the job will wait until other jobs terminate and free its memory.
@@ -54,6 +55,15 @@ My emulation program obey the memory rule above, and the executing result is sho
 
 
 **2. First Example** 
+=======
+Memory Page Allocation:
+
+The memory size is 20kbyte in total, and is divided into 20 equal pages, where the page size is 1kbyte. 
+
+
+
+Assuming it's a 
+>>>>>>> Stashed changes
 
 The simulation last 13 step. ***Best-fit*** is used as the default way to allocate memories for jobs. The record for the simulation is recorded below, where '#' represents pages that are occupied while "~" represents free pages.
 
@@ -247,6 +257,7 @@ Time 13 finished
 
 
 Every job is sleeping or ending!
+<<<<<<< Updated upstream
 ```
 
 3. **More Jobs with *Best-Fit* and *First-Fit***
@@ -265,6 +276,8 @@ In this experiment, the selected two algorithm draw in time consuming, but revie
 
 Considering this experiment is a ideal assumption where each job's can fully use several pages without leaving any internal segments, the first-fit will probably leave much segment in the real scenes. Therefore I think the best-fit algorithm is better.
 
+=======
+>>>>>>> Stashed changes
 ```
 Time 41 finished
 ----------------------------------

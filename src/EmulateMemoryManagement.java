@@ -1,7 +1,4 @@
 
-import jdk.nashorn.internal.scripts.JO;
-
-import java.beans.beancontext.BeanContext;
 import java.util.*;
 
 public class EmulateMemoryManagement {
@@ -10,10 +7,12 @@ public class EmulateMemoryManagement {
     private int[] frames;
     private Job[] jobs;
     private int steps;
+    private Deque<Job> jobDeque;
 
     public EmulateMemoryManagement(Job[] jobs) {
         this.jobs = jobs;
         this.frames = new int[TOTAL_MEMORY / PAGE_SIZE];
+        jobDeque = new LinkedList<>();
     }
 
     public boolean execute() {
@@ -25,65 +24,68 @@ public class EmulateMemoryManagement {
         Map<Job, Integer> jobStarting = new LinkedHashMap<>();
         for (int i = 0; i < this.jobs.length; i++) {
             Job job = this.jobs[i];
-            if (job != null) {
+            if (job.currState != JobState.TERMINATED) {
                 jobs.put(job, i);
-                if (job.startTime == steps || (job.startTime < steps && job.heldPages == null)) {
+                if (job.startTime == steps || (job.startTime < steps && job.heldPages.isEmpty())) {
                     jobStarting.put(job, i);
                 }
             }
         }
         for (Job job: jobStarting.keySet()) {
-            System.out.println("\t" + job + " - ready: " + job.requiredPages + " pages required");
-            int[] firstFit = findFirstFit(job.requiredPages);
-            int[] bestFit = findBestFit(job.requiredPages);
-            if (!Arrays.equals(firstFit, bestFit)) {
-                System.out.println("FirstFit and BestFit select different pages");
-            }
-//            int[] fit = bestFit;
-            int[] fit = firstFit;
-            if (fit == null) {
-                System.out.println("\t" + job + " - skipped: could not find " + job.requiredPages + " empty pages");
-            } else {
-                for (int i = fit[0]; i < fit[1]; i++) {
-                    frames[i] = 1;
-                }
-                job.heldPages = fit;
-                System.out.println("\t" + job + " - allocated: pages " + fit[0] + "-" + fit[1]);
-            }
 
+            System.out.println("\t" + job + " - ready: " + job.requiredPages + " pages required");
+            List<Integer> allocate = allocate(job.requiredPages);
+            if (allocate.isEmpty()) {
+                System.out.println("\t" + job + " - skipped: could not find " + job.requiredPages + " empty pages");
+                List<Integer> deallocateJobs = deallocate(job.requiredPages);
+                allocate = allocate(job.requiredPages);
+                System.out.println("\t" + "kill job " + deallocateJobs + " to free pages");
+            }
+            for (int page: allocate) {
+                frames[page] = 1;
+            }
+            job.heldPages = allocate;
+            jobDeque.addLast(job);
+            System.out.println("\t" + job + " - allocated: pages " + allocate);
 
         }
         Map<Job, Integer> jobsRunning = new LinkedHashMap<>();
         for (Job job: jobs.keySet()) {
-            if (job.startTime <= steps && job.executionInterval > 0 && job.heldPages != null) {
+            if (job.startTime <= steps && job.executionInterval > 0 && !job.heldPages.isEmpty()) {
                 jobsRunning.put(job, jobs.get(job));
             }
         }
         for (Job job: jobsRunning.keySet()) {
-            int length = job.heldPages[1] - job.heldPages[0];
-            if (length > 0) {
+            if (!job.heldPages.isEmpty()) {
                 System.out.println("\t" + job + " - running: " + --job.executionInterval + " steps remaining");
+                job.currState = JobState.RUNNING;
             } else {
                 System.out.println("\t" + job + " - not running");
             }
             if (job.executionInterval == 0) {
                 System.out.println("\t" + job + " - finishing: transitioned to " + job.finishState);
-//                switch (job.finishState) {
-//                    case End:
-                        for (int i = job.heldPages[0]; i < job.heldPages[1]; i++) {
-                            frames[i] = 0;
+                switch (job.finishState) {
+                    case TERMINATED:
+                        for (int heldpage: job.heldPages) {
+                            frames[heldpage] = 0;
                         }
-                        System.out.println("\t" + job + " - released: " + job.heldPages[0] + "-" + job.heldPages[1] + " pages");
-                        this.jobs[jobs.get(job)] = null;
-//                        break;
-//                    case Sleep:
-//                        break;
-//                }
+                        System.out.println("\t" + job + " - released: " + job.heldPages);
+                        this.jobs[jobs.get(job)].currState = JobState.TERMINATED;
+                        job.heldPages.clear();
+                        job.currState = JobState.TERMINATED;
+                        jobDeque.remove(job);
+                        break;
+                    case BLOCKED:
+                        job.currState = JobState.BLOCKED;
+                        this.jobs[jobs.get(job)].currState = JobState.BLOCKED;
+                        break;
+                }
             }
         }
         Map<Job, Integer> jobsSleeping = new LinkedHashMap<>();
         for (Job job: jobs.keySet()) {
-            if (job.startTime <= steps && job.executionInterval == 0) {
+//            if (job.startTime <= steps && job.executionInterval == 0) {
+            if (job.currState == JobState.BLOCKED) {
                 jobsSleeping.put(job, jobs.get(job));
             }
         }
@@ -97,59 +99,54 @@ public class EmulateMemoryManagement {
         System.out.println();
 
         for(Job job: jobs.keySet()) {
-            if (job.startTime > steps || job.executionInterval > 0) {
+//            if (job.startTime > steps || job.executionInterval > 0) {
+            if (job.currState != JobState.BLOCKED && job.currState != JobState.TERMINATED) {
                 return false;
             }
         }
         return true;
     }
 
-
-    public int[] findFirstFit(int sizeAtLeast) {
-        List<int[]> allFree = findAllUnoccupied();
-        for(int[] af: allFree) {
-            if (af[1] - af[0] >= sizeAtLeast) {
-                return new int[]{af[0], af[0] + sizeAtLeast};
+    public List<Integer> deallocate(int needSize) {
+        List<Integer> killedJobs = new ArrayList<>();
+        int freeSize = findAllUnoccupied().size();
+        int needToFree = needSize - freeSize;
+        while (needToFree > 0) {
+            Job oldJob = jobDeque.poll();
+            oldJob.currState = JobState.TERMINATED;
+            oldJob.executionInterval = 0;
+            for (int page: oldJob.heldPages) {
+                frames[page] = 0;
             }
+            int oldJobSize = oldJob.heldPages.size();
+            killedJobs.add(oldJob.ID);
+            needToFree -= oldJobSize;
         }
-        return null;
+        return killedJobs;
+
     }
 
-    public int[] findBestFit(int sizeAtLeast) {
-        int minSize = frames.length + 1;
-        int[] res = null;
-        List<int[]> allFree = findAllUnoccupied();
-        for (int[] af: allFree) {
-            int currSize = af[1] - af[0];
-            if (currSize >= sizeAtLeast) {
-                if (minSize > currSize) {
-                    res =  new int[]{af[0], af[0]+sizeAtLeast};
-                    minSize = currSize;
-                }
-            }
+
+    public List<Integer> allocate(int sizeAtLeast) {
+        List<Integer> allUnoccupied = findAllUnoccupied();
+        List<Integer> toAllocate = new ArrayList<>();
+        if (sizeAtLeast > allUnoccupied.size()) return toAllocate;
+        for (int unoccupied: allUnoccupied) {
+            if (sizeAtLeast-- == 0) break;
+            toAllocate.add(unoccupied);
         }
-        return res;
+        return toAllocate;
     }
 
-    public List<int[]> findAllUnoccupied() {
-        List<int[]> allFreePages = new ArrayList<>();
-        int[] freePage = null;
+
+    public List<Integer> findAllUnoccupied() {
+        List<Integer> allUnoccupied = new ArrayList<>();
         for (int i = 0; i < frames.length; i++) {
-            if (frames[i] == 0) {
-                if (freePage == null) {
-                    freePage = new int[2];
-                    freePage[0] = i;
-                    freePage[1] = i+1;
-                } else {
-                    freePage[1] = i + 1;
-                }
-            } else if (freePage != null) {
-                allFreePages.add(freePage);
-                freePage = null;
+            if (frames[i] == 0){
+                allUnoccupied.add(i);
             }
         }
-        if (freePage != null) allFreePages.add(freePage);
-        return allFreePages;
+        return allUnoccupied;
     }
 
 
@@ -161,35 +158,20 @@ public class EmulateMemoryManagement {
         System.out.println();
     }
 
+//    public void
+
     public static void main(String[] args) throws InterruptedException {
         Job[] jobs = new Job[]{
-                new Job(1, 1, 2, 7, JobFinishState.End),
-                new Job(2, 2, 3, 8, JobFinishState.Sleep),
-                new Job(3, 3, 4, 6, JobFinishState.End),
-                new Job(4, 4, 3, 6, JobFinishState.Sleep),
-                new Job(5, 5, 2, 9, JobFinishState.Sleep),
-                new Job(6, 6, 3, 6, JobFinishState.Sleep),
-                new Job(7, 7, 2, 6, JobFinishState.Sleep),
-                new Job(8,8,3,4,JobFinishState.Sleep),
-                new Job(9,9,5,5,JobFinishState.Sleep),
-                new Job(10,10,2,8,JobFinishState.Sleep),
-                new Job(11, 11, 4, 6, JobFinishState.End),
-                new Job(12, 12, 6, 5, JobFinishState.Sleep),
-                new Job(2, 13, 3, 6, JobFinishState.End ),
-                new Job(4, 13, 3, 4, JobFinishState.Sleep),
-                new Job(13, 13, 5, 3, JobFinishState.End),
-                new Job(7, 13, 2, 3, JobFinishState.End),
-                new Job(9, 17, 4, 4, JobFinishState.Sleep),
-                new Job(10, 19, 2, 11, JobFinishState.End),
-                new Job(6, 19, 3, 6, JobFinishState.End),
-                new Job(5, 20, 2, 10, JobFinishState.Sleep),
-                new Job(4, 21, 3, 12, JobFinishState.Sleep),
-                new Job(12, 22, 6, 13, JobFinishState.End),
-                new Job(8, 22, 3, 9, JobFinishState.End),
-                new Job(9, 28, 5, 11, JobFinishState.End),
-                new Job(5, 33, 2, 3, JobFinishState.Sleep),
-                new Job(4, 34, 3, 10, JobFinishState.End),
-                new Job(5, 38, 2, 10, JobFinishState.End)
+                new Job(1, 1, 2, 7, JobState.BLOCKED),
+                new Job(2, 2, 3, 8, JobState.BLOCKED),
+                new Job(3, 3, 4, 6, JobState.BLOCKED),
+                new Job(4, 4, 3, 6, JobState.BLOCKED),
+                new Job(5, 5, 2, 9, JobState.BLOCKED),
+                new Job(6, 6, 3, 6, JobState.BLOCKED),
+                new Job(7, 7, 2, 6, JobState.BLOCKED),
+                new Job(8, 12, 8, 4, JobState.TERMINATED),
+
+
         };
         EmulateMemoryManagement virtualOperatingSystem = new EmulateMemoryManagement(jobs);
         System.out.println("Jobs Loaded: ");
@@ -198,21 +180,5 @@ public class EmulateMemoryManagement {
         }
         System.out.println("Every job is sleeping or ending!");
 
-//        virtualOperatingSystem.frames[1] = 1;
-//        virtualOperatingSystem.frames[14] = 1;
-//        virtualOperatingSystem.frames[1] = 1;
-////        Arrays.fill(virtualOperatingSystem.frames, 1);
-//        virtualOperatingSystem.printFrameSnapshot();
-//        List<int[]> res = virtualOperatingSystem.findAllUnoccupied();
-//        System.out.println(res.size());
-//        for (int[] r: res) {
-//            System.out.println(r[0] + " " + r[1]);
-//        }
-//
-//        int[] bestFit = virtualOperatingSystem.findBestFit(5);
-//        int[] firstFit = virtualOperatingSystem.findFirstFit(5);
-//        System.out.println(bestFit[0] + " " + bestFit[1]);
-//        System.out.println(firstFit[0] + " " + firstFit[1]);
-//    }
     }
 }
