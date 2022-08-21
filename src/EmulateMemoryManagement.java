@@ -169,7 +169,7 @@ public class EmulateMemoryManagement {
                 new Job(5, 5, 2, 9, JobState.BLOCKED),
                 new Job(6, 6, 3, 6, JobState.BLOCKED),
                 new Job(7, 7, 2, 6, JobState.BLOCKED),
-                new Job(8, 12, 8, 4, JobState.TERMINATED),
+                new Job(8, 12, 8, 5, JobState.TERMINATED),
 
 
         };
