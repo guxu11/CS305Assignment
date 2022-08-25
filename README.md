@@ -22,14 +22,6 @@
 git clone -b assignment2 git@github.com:guxu11/CS305Assignment.git
 ```
 
-The emulating codes are in the ***src*** folder. 
-
-`Job.java`  is the Struct of a job. 
-
- `JobState.java` is the enum of finishing states.
-
-`EmulateMemoryManagement.java` is the code for emulating memory management.
-
 To run the program, just compile them firstly.
 
 ```bash
@@ -43,9 +35,9 @@ To execute the emulation
 java EmulateMemoryManagement
 ```
 
-## 2.  Implementation
+## 2.  Explanation
 
-**1. Memory Page Allocation:**
+**1. How OS manage memory**
 
 Assuming it's a **non-contiguous memory**, jobs can only allocated with separated space. If there remains pages that can contains the job, the OS will allocate the space for it. If not, the OS will free some pages to meet the page requirement according to **FIFO** page replacement algorithm.
 
@@ -53,180 +45,27 @@ My emulation program obey the memory rule above, and the executing result is sho
 
 
 
-**2. Execution**
+**2. Abstraction**
 
 The simulation last 16 steps. The record for the simulation is recorded below, where '#' represents pages that are occupied while "~" represents free pages.
 
+The program simplified file loading job as `new Job(8, 12, 8, 5, JobState.TERMINATED)` , which is in the same format of the previous 7 jobs.
+
+| Job ID | Start Time | Job required size | Execution interval | Job state at the end of the interval |
+| :----- | :--------- | :---------------- | :----------------- | :----------------------------------- |
+| 1      | 1          | 2                 | 7                  | Sleep                                |
+| 2      | 2          | 3                 | 8                  | Sleep                                |
+| 3      | 3          | 4                 | 6                  | Sleep                                |
+| 4      | 4          | 3                 | 6                  | Sleep                                |
+| 5      | 5          | 2                 | 9                  | Sleep                                |
+| 6      | 6          | 3                 | 6                  | Sleep                                |
+| 7      | 7          | 2                 | 6                  | Sleep                                |
+| 8      | 12         | 8                 | 5                  | End                                  |
+
+**3. execution**
 ```
 Jobs Loaded: 
-----------------------------------
-Time 1
-Frame Occupied: ~~~~~~~~~~~~~~~~~~~~
-	(Job 01) - ready: 2 pages required
-	(Job 01) - allocated: pages [0, 1]
-	(Job 01) - running: 6 steps remaining
-Frame Occupied: ##~~~~~~~~~~~~~~~~~~
-Time 1 finished
-----------------------------------
-
-
-----------------------------------
-Time 2
-Frame Occupied: ##~~~~~~~~~~~~~~~~~~
-	(Job 02) - ready: 3 pages required
-	(Job 02) - allocated: pages [2, 3, 4]
-	(Job 01) - running: 5 steps remaining
-	(Job 02) - running: 7 steps remaining
-Frame Occupied: #####~~~~~~~~~~~~~~~
-Time 2 finished
-----------------------------------
-
-
-----------------------------------
-Time 3
-Frame Occupied: #####~~~~~~~~~~~~~~~
-	(Job 03) - ready: 4 pages required
-	(Job 03) - allocated: pages [5, 6, 7, 8]
-	(Job 01) - running: 4 steps remaining
-	(Job 02) - running: 6 steps remaining
-	(Job 03) - running: 5 steps remaining
-Frame Occupied: #########~~~~~~~~~~~
-Time 3 finished
-----------------------------------
-
-
-----------------------------------
-Time 4
-Frame Occupied: #########~~~~~~~~~~~
-	(Job 04) - ready: 3 pages required
-	(Job 04) - allocated: pages [9, 10, 11]
-	(Job 01) - running: 3 steps remaining
-	(Job 02) - running: 5 steps remaining
-	(Job 03) - running: 4 steps remaining
-	(Job 04) - running: 5 steps remaining
-Frame Occupied: ############~~~~~~~~
-Time 4 finished
-----------------------------------
-
-
-----------------------------------
-Time 5
-Frame Occupied: ############~~~~~~~~
-	(Job 05) - ready: 2 pages required
-	(Job 05) - allocated: pages [12, 13]
-	(Job 01) - running: 2 steps remaining
-	(Job 02) - running: 4 steps remaining
-	(Job 03) - running: 3 steps remaining
-	(Job 04) - running: 4 steps remaining
-	(Job 05) - running: 8 steps remaining
-Frame Occupied: ##############~~~~~~
-Time 5 finished
-----------------------------------
-
-
-----------------------------------
-Time 6
-Frame Occupied: ##############~~~~~~
-	(Job 06) - ready: 3 pages required
-	(Job 06) - allocated: pages [14, 15, 16]
-	(Job 01) - running: 1 steps remaining
-	(Job 02) - running: 3 steps remaining
-	(Job 03) - running: 2 steps remaining
-	(Job 04) - running: 3 steps remaining
-	(Job 05) - running: 7 steps remaining
-	(Job 06) - running: 5 steps remaining
-Frame Occupied: #################~~~
-Time 6 finished
-----------------------------------
-
-
-----------------------------------
-Time 7
-Frame Occupied: #################~~~
-	(Job 07) - ready: 2 pages required
-	(Job 07) - allocated: pages [17, 18]
-	(Job 01) - running: 0 steps remaining
-	(Job 01) - finishing: transitioned to BLOCKED
-	(Job 02) - running: 2 steps remaining
-	(Job 03) - running: 1 steps remaining
-	(Job 04) - running: 2 steps remaining
-	(Job 05) - running: 6 steps remaining
-	(Job 06) - running: 4 steps remaining
-	(Job 07) - running: 5 steps remaining
-	(Job 01) - sleeping
-Frame Occupied: ###################~
-Time 7 finished
-----------------------------------
-
-
-----------------------------------
-Time 8
-Frame Occupied: ###################~
-	(Job 02) - running: 1 steps remaining
-	(Job 03) - running: 0 steps remaining
-	(Job 03) - finishing: transitioned to BLOCKED
-	(Job 04) - running: 1 steps remaining
-	(Job 05) - running: 5 steps remaining
-	(Job 06) - running: 3 steps remaining
-	(Job 07) - running: 4 steps remaining
-	(Job 01) - sleeping
-	(Job 03) - sleeping
-Frame Occupied: ###################~
-Time 8 finished
-----------------------------------
-
-
-----------------------------------
-Time 9
-Frame Occupied: ###################~
-	(Job 02) - running: 0 steps remaining
-	(Job 02) - finishing: transitioned to BLOCKED
-	(Job 04) - running: 0 steps remaining
-	(Job 04) - finishing: transitioned to BLOCKED
-	(Job 05) - running: 4 steps remaining
-	(Job 06) - running: 2 steps remaining
-	(Job 07) - running: 3 steps remaining
-	(Job 01) - sleeping
-	(Job 02) - sleeping
-	(Job 03) - sleeping
-	(Job 04) - sleeping
-Frame Occupied: ###################~
-Time 9 finished
-----------------------------------
-
-
-----------------------------------
-Time 10
-Frame Occupied: ###################~
-	(Job 05) - running: 3 steps remaining
-	(Job 06) - running: 1 steps remaining
-	(Job 07) - running: 2 steps remaining
-	(Job 01) - sleeping
-	(Job 02) - sleeping
-	(Job 03) - sleeping
-	(Job 04) - sleeping
-Frame Occupied: ###################~
-Time 10 finished
-----------------------------------
-
-
-----------------------------------
-Time 11
-Frame Occupied: ###################~
-	(Job 05) - running: 2 steps remaining
-	(Job 06) - running: 0 steps remaining
-	(Job 06) - finishing: transitioned to BLOCKED
-	(Job 07) - running: 1 steps remaining
-	(Job 01) - sleeping
-	(Job 02) - sleeping
-	(Job 03) - sleeping
-	(Job 04) - sleeping
-	(Job 06) - sleeping
-Frame Occupied: ###################~
-Time 11 finished
-----------------------------------
-
-
+......
 ----------------------------------
 Time 12
 Frame Occupied: ###################~
@@ -302,13 +141,11 @@ Time 16 finished
 ----------------------------------
 ```
 
-3. **Analysis**
-
-The program simplified file loading job as `new Job(8, 12, 8, 5, JobState.TERMINATED)` , which is in the same format of the previous 7 job.
+**4. Analysis**
 
 The first 7 jobs are all finished with the Blocked (Sleeping) state, which means this job free the CPU usage but still stays in memory. After all the 7 jobs ending in the blocked state in the 11th time step, the frame situation is **Frame Occupied: ###################~** , which means there is only one page left. 
 
-Therefore the OS have to deallocate at least 7 pages to contain this file, by  `kill job [1, 2, 3] to free pages ` .
+Therefore the OS have to deallocate at least 7 pages to contain this file, by  **`kill job [1, 2, 3] to free pages `** .
 
 Then we can answer the questions listed in the assignment 2 page. The file occupied 8 single disk blocs, and it's allocated 8 pages,  from page 0 to page 7.
 
